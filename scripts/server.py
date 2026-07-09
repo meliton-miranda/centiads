@@ -121,7 +121,9 @@ def compute_range(preset, since, until):
 # ---- datos -----------------------------------------------------------------
 def fetch(con, df, dt):
     con.run("set search_path to cockpit, public")
-    accts = con.run("select meta_ad_account_id, name, segment, currency from clients order by name")
+    accts = con.run("""select meta_ad_account_id, name, segment, currency, ghl_location_id,
+        (ghl_pit is not null and ghl_pit <> '') as has_pit, coalesce(ghl_utm_field,'utm_campaign')
+        from clients order by name""")
     camps = con.run("""select meta_ad_account_id, campaign_id, max(campaign_name), max(status),
         sum(spend), sum(impressions), sum(clicks), sum(leads),
         sum(ev_solicitud), sum(ev_registro), sum(ev_cita), sum(ev_venta)
@@ -202,6 +204,12 @@ def build_page(tab, preset, since, until):
 
     def view(seg, title):
         rows = [a for a in accts if a[2] == seg]
+        # cuentas con gasto/campañas primero; las sin actividad, hasta abajo
+        def akey(a):
+            cs = camps_by.get(a[0], [])
+            sp = sum(c["spend"] for c in cs)
+            return (0 if sp > 0 else 1, -sp, (a[1] or "").lower())
+        rows.sort(key=akey)
         body = ""
         for i, a in enumerate(rows):
             acct, name = a[0], a[1]
@@ -227,14 +235,25 @@ def build_page(tab, preset, since, until):
                 f'<span><span class="dot" style="background:var(--a)"></span>7–13</span><span><span class="dot" style="background:var(--r)"></span>&lt;7</span>'
                 f'<span style="margin-left:12px">Solic./Registros/Citas/Ventas se llenan al <b>conectar GHL</b>.</span></div></section>')
 
-    ghl_rows = "".join(
-        f'<tr><td>{a[1]}</td><td>{a[2]}</td><td class="hint">{a[0]}</td><td class="hint">—</td>'
-        f'<td><span class="tag a">falta PIT</span></td><td class="hint">utm_campaign</td></tr>' for a in accts)
+    forms = "".join(f'<form id="g{i}" method="post" action="/save-ghl">'
+                    f'<input type="hidden" name="acct" value="{a[0]}"></form>' for i, a in enumerate(accts))
+    ghl_rows = ""
+    for i, a in enumerate(accts):
+        loc, has_pit, utm = (a[4] or ""), a[5], (a[6] or "utm_campaign")
+        pit_ph = "•••• guardado (vacío = conservar)" if has_pit else "pit-..."
+        pit_tag = '<span class="tag g">•••• ok</span>' if has_pit else '<span class="tag a">falta</span>'
+        ghl_rows += (f'<tr><td>{a[1]}</td><td>{a[2]}</td>'
+                     f'<td><input form="g{i}" name="loc" value="{loc}" placeholder="n1Jw67thJs…" style="width:150px"></td>'
+                     f'<td><input form="g{i}" name="pit" type="password" placeholder="{pit_ph}" style="width:180px"></td>'
+                     f'<td><input form="g{i}" name="utm" value="{utm}" style="width:120px"></td>'
+                     f'<td>{pit_tag}</td><td><button class="btn" form="g{i}">Guardar</button></td></tr>')
     ghl_on = " on" if tab == "ghl" else ""
-    ghl = (f'<section id="ghl" class="v{ghl_on}"><div class="callout">Aquí se conecta cada subcuenta de Go High Level con su '
-           f'<b>Private Integration Token (PIT)</b> para traer <b>leads reales, citas y ventas</b> '
-           f'(las columnas que hoy salen “—”).</div><div class="ts"><table><thead><tr><th>Cuenta</th><th>Vista</th>'
-           f'<th>Meta ID</th><th>GHL location</th><th>PIT</th><th>Campo UTM</th></tr></thead><tbody>{ghl_rows}</tbody></table></div></section>')
+    ghl = (f'<section id="ghl" class="v{ghl_on}"><div class="callout">Conecta cada subcuenta de Go High Level con su '
+           f'<b>Private Integration Token (PIT)</b> para traer <b>leads reales, citas y ventas</b>. '
+           f'Pega el <b>GHL location</b> y el <b>PIT</b> de cada cuenta y dale <b>Guardar</b> (el PIT se guarda seguro).</div>'
+           f'{forms}<div class="ts"><table><thead><tr><th>Cuenta</th><th>Vista</th>'
+           f'<th>GHL location</th><th>PIT</th><th>Campo UTM</th><th>Estado</th><th></th></tr></thead>'
+           f'<tbody>{ghl_rows}</tbody></table></div></section>')
 
     def navlink(t, label):
         on = " on" if tab == t else ""
@@ -275,6 +294,7 @@ th:first-child,td:first-child{{text-align:left}}th{{color:var(--mu);font-weight:
 .hint{{color:var(--mu);font-size:12px}}.callout{{background:var(--panel);border:1px solid var(--bd);border-left:3px solid var(--ac);border-radius:10px;padding:10px 14px;margin:6px 0 14px;color:var(--mu);font-size:13px}}.callout b{{color:var(--tx)}}
 .lg{{display:flex;gap:14px;color:var(--mu);font-size:12px;margin:8px 0 4px;flex-wrap:wrap}}.lg b{{color:var(--tx)}}.dot{{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:5px}}
 .dr{{display:flex;gap:8px;align-items:center;margin:12px 0;flex-wrap:wrap}}.dr select,.dr input{{background:var(--p2);border:1px solid var(--bd);color:var(--tx);border-radius:8px;padding:6px 9px}}.dr .lbl{{color:var(--mu);font-size:12px}}.btn{{background:var(--ac);color:#04101f;border:none;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer}}
+.ts input{{background:var(--p2);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:5px 8px}}
 .v{{display:none}}.v.on{{display:block}}
 </style></head><body>
 <nav class="nav"><span class="br">🛰️ NetUs Ads Cockpit</span>{nav}</nav>
@@ -304,6 +324,30 @@ class Handler(BaseHTTPRequestHandler):
             msg = f"Error: {e}".encode("utf-8")
             self.send_response(500); self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.end_headers(); self.wfile.write(msg)
+
+    def do_POST(self):
+        u = urllib.parse.urlparse(self.path)
+        if u.path != "/save-ghl":
+            self.send_response(404); self.end_headers(); return
+        n = int(self.headers.get("Content-Length", "0"))
+        data = urllib.parse.parse_qs(self.rfile.read(n).decode("utf-8"))
+        acct = (data.get("acct", [""])[0]).strip()
+        loc = (data.get("loc", [""])[0]).strip()
+        pit = (data.get("pit", [""])[0]).strip()
+        utm = (data.get("utm", ["utm_campaign"])[0]).strip() or "utm_campaign"
+        if acct:
+            con = connect()
+            try:
+                con.run("set search_path to cockpit, public")
+                con.run("""update clients set ghl_location_id = :loc, ghl_utm_field = :utm,
+                    ghl_pit = coalesce(nullif(:pit, ''), ghl_pit), updated_at = now()
+                    where meta_ad_account_id = :acct""",
+                    loc=(loc or None), utm=utm, pit=pit, acct=acct)
+            finally:
+                con.close()
+        self.send_response(303)
+        self.send_header("Location", "/?tab=ghl")
+        self.end_headers()
 
     def log_message(self, *a):
         pass
