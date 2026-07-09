@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NetUs Ads Cockpit — Vista previa</title>
+<style>
+:root{--bg:#0b0f17;--panel:#131a26;--panel2:#0f1520;--border:#223046;--text:#e6edf6;--muted:#8ea0b8;--accent:#4f9cff;--red:#ff5c72;--amber:#ffbf47;--green:#37d39a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.banner{background:linear-gradient(90deg,rgba(79,156,255,.16),rgba(55,211,154,.10));border-bottom:1px solid var(--border);padding:8px 20px;font-size:13px;color:var(--muted)}
+.banner b{color:var(--text)}
+.nav{display:flex;gap:4px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--panel2)}
+.nav .brand{font-weight:700;margin-right:16px}
+.nav button{padding:6px 12px;border-radius:8px;color:var(--muted);background:transparent;border:none;cursor:pointer;font:inherit}
+.nav button.active{background:var(--panel);color:var(--text)}
+.wrap{padding:20px;max-width:1340px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+h2{font-size:15px;margin:22px 0 10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.card .k{color:var(--muted);font-size:12px}
+.card .v{font-size:22px;font-weight:700;margin-top:2px}
+.table-scroll{overflow-x:auto;border:1px solid var(--border);border-radius:12px;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;background:var(--panel)}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:12px;background:var(--panel2)}
+tr:last-child td{border-bottom:none}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.tag.red{background:rgba(255,92,114,.15);color:var(--red)}
+.tag.amber{background:rgba(255,191,71,.15);color:var(--amber)}
+.tag.green{background:rgba(55,211,154,.15);color:var(--green)}
+.tag.muted{background:rgba(142,160,184,.15);color:var(--muted)}
+.check.yes{color:var(--green);font-size:16px}
+.check.no{color:var(--red);font-size:16px}
+.hint{color:var(--muted);font-size:12px}
+.green-num{color:var(--green);font-weight:700}
+.int{text-align:left}
+.int div{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px}
+/* expandible */
+tr.acct,tr.camp{cursor:pointer}
+tr.acct:hover,tr.camp:hover{background:rgba(79,156,255,.06)}
+.caret{display:inline-block;width:14px;color:var(--muted)}
+.caret.open{color:var(--accent)}
+tr.detail{display:none}
+tr.detail.open{display:table-row}
+tr.detail>td{background:var(--panel2);padding:0 0 0 18px;border-bottom:2px solid var(--border)}
+.subwrap{overflow-x:auto;padding:6px 10px 10px 0}
+.subtable{width:100%;background:transparent}
+.subtable th{background:#0c121c}
+.grp-pixel{background:rgba(79,156,255,.06)}
+th.grp-pixel{background:#0d1726}
+.grp{text-align:center !important;border-bottom:1px solid var(--border)}
+th.grp-pixel.grp{color:var(--accent)}
+thead tr:nth-child(2) th:first-child{text-align:right}
+/* CPL condicional */
+.cpl-green{color:var(--green);font-weight:700}
+.cpl-amber{color:var(--amber);font-weight:700}
+.cpl-red{color:var(--red);font-weight:700}
+.lead-green{color:var(--green) !important;font-weight:700}
+.lead-amber{color:var(--amber) !important;font-weight:700}
+.lead-red{color:var(--red) !important;font-weight:700}
+.legend{display:flex;gap:18px;align-items:center;margin:8px 0 0;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+/* periodo */
+.daterange{display:flex;gap:8px;align-items:center;margin:12px 0 14px;flex-wrap:wrap}
+.daterange select,.daterange input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px}
+.daterange .lbl{color:var(--muted);font-size:12px}
+button.save{background:var(--accent);color:#04101f;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer}
+input.f,select.f{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;width:100%}
+form.row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;margin-bottom:16px}
+.callout{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:10px 14px;margin:6px 0 16px;color:var(--muted);font-size:13px}
+.callout b{color:var(--text)}
+.fh{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.35}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+section{display:none}
+section.active{display:block}
+</style>
+</head>
+<body>
+<div class="banner">🔎 <b>Vista previa estática</b> — datos de ejemplo (Vique Finanzas es real, del MCP). Aún <b>sin conectar a Hostinger</b>. Cuenta → clic → campañas → clic → anuncios.</div>
+<nav class="nav">
+  <span class="brand">🛰️ NetUs Ads Cockpit</span>
+  <button data-tab="clientes" class="active">Clientes</button>
+  <button data-tab="netus">NetUs</button>
+  <button data-tab="cuentas">Cuentas</button>
+</nav>
+<div class="wrap">
+
+  <!-- ================= CLIENTES ================= -->
+  <section id="clientes" class="active">
+    <h1>Vista Clientes</h1>
+    <div class="daterange">
+      <span class="lbl">Periodo:</span>
+      <select id="preset" onchange="onPreset()">
+        <option value="Ayer">Ayer</option>
+        <option value="Últimos 7 días" selected>Últimos 7 días</option>
+        <option value="Últimos 14 días">Últimos 14 días</option>
+        <option value="Últimos 30 días">Últimos 30 días</option>
+        <option value="Este mes">Este mes</option>
+        <option value="Mes pasado">Mes pasado</option>
+        <option value="custom">Personalizado…</option>
+      </select>
+      <span id="customRange" style="display:none">
+        <input type="date" id="since" value="2026-07-01" /> <span class="lbl">a</span>
+        <input type="date" id="until" value="2026-07-07" />
+        <button class="save" onclick="applyCustom()">Aplicar</button>
+      </span>
+      <span class="lbl" id="caption">Últimos 7 días · muestra de 8 de tus 27 cuentas con acceso</span>
+    </div>
+
+    <div class="cards">
+      <div class="card"><div class="k">Cuentas con acceso</div><div class="v">27</div></div>
+      <div class="card"><div class="k">⚠️ Sin leads ayer</div><div class="v" style="color:var(--red)">1</div></div>
+      <div class="card"><div class="k">🔴 Con rechazo/error</div><div class="v" style="color:var(--red)">1</div></div>
+      <div class="card"><div class="k">🆕 Sin anuncio nuevo (sem)</div><div class="v" style="color:var(--amber)">2</div></div>
+    </div>
+
+    <h2>Cuentas publicitarias</h2>
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th rowspan="2">Cuenta</th><th rowspan="2">Camp.</th><th rowspan="2">Gasto</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Nuevo (sem)</th><th rowspan="2">Anuncios</th></tr>
+        <tr><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. enviadas</th><th class="grp-pixel">Registros compl.</th><th class="grp-pixel">Citas prog.</th><th class="grp-pixel">Ventas</th></tr>
+      </thead>
+      <tbody>
+        <!-- ===== Vique ===== -->
+        <tr class="acct" onclick="tog('a1')"><td><span class="caret" id="c-a1">▸</span> Vique Finanzas</td><td>1</td><td>$1,386</td><td class="grp-pixel" style="font-weight:700">42</td><td class="grp-pixel">30</td><td class="grp-pixel">25</td><td class="grp-pixel">12</td><td class="grp-pixel green-num">3</td><td class="cpl" data-v="33.01"></td><td class="int"><div title="Seguros, Planeación financiera, Retiro">Seguros, Planeación, Retiro</div></td><td><span class="check yes">☑</span></td><td><span class="tag green">ok</span></td></tr>
+        <tr class="detail" id="a1"><td colspan="12"><div class="subwrap"><table class="subtable">
+          <thead><tr><th rowspan="2">Campaña</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Anuncios</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+          <tbody>
+            <tr class="camp" onclick="tog('a1c1')"><td><span class="caret" id="c-a1c1">▸</span> PPR</td><td><span class="tag green">activa</span></td><td>$1,386.46</td><td>2.13%</td><td>$102.11</td><td class="grp-pixel">42</td><td class="grp-pixel">30</td><td class="grp-pixel">25</td><td class="grp-pixel">12</td><td class="grp-pixel">3</td><td class="cpl" data-v="33.01"></td><td class="int"><div title="Seguros, Planeación financiera, Retiro">Seguros, Planeación, Retiro</div></td><td><span class="tag muted">ok</span></td></tr>
+            <tr class="detail" id="a1c1"><td colspan="13"><div class="subwrap"><table class="subtable">
+              <thead><tr><th rowspan="2">Anuncio</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Problema</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+              <tbody>
+                <tr><td>PPR · Video Testimonio</td><td><span class="tag green">activo</span></td><td>$820.00</td><td>2.40%</td><td>$98.00</td><td class="grp-pixel" style="font-weight:700">28</td><td class="grp-pixel">20</td><td class="grp-pixel">17</td><td class="grp-pixel">8</td><td class="grp-pixel">2</td><td class="cpl" data-v="29.29"></td><td><span class="tag muted">—</span></td></tr>
+                <tr><td>PPR · Imagen Beneficios</td><td><span class="tag green">activo</span></td><td>$566.46</td><td>1.75%</td><td>$108.00</td><td class="grp-pixel">14</td><td class="grp-pixel">10</td><td class="grp-pixel">8</td><td class="grp-pixel">4</td><td class="grp-pixel">1</td><td class="cpl" data-v="40.46"></td><td><span class="tag muted">—</span></td></tr>
+              </tbody>
+            </table></div></td></tr>
+          </tbody>
+        </table></div></td></tr>
+
+        <!-- ===== GarBa ===== -->
+        <tr class="acct" onclick="tog('a2')"><td><span class="caret" id="c-a2">▸</span> GarBa Soluciones Financieras</td><td>2</td><td>$3,260</td><td class="grp-pixel" style="font-weight:700">89</td><td class="grp-pixel">63</td><td class="grp-pixel">51</td><td class="grp-pixel">26</td><td class="grp-pixel green-num">8</td><td class="cpl" data-v="36.63"></td><td class="int"><div title="Ahorro, Inversión, Finanzas personales, Retiro">Ahorro, Inversión, Retiro +1</div></td><td><span class="check yes">☑</span></td><td><span class="tag green">ok</span></td></tr>
+        <tr class="detail" id="a2"><td colspan="12"><div class="subwrap"><table class="subtable">
+          <thead><tr><th rowspan="2">Campaña</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Anuncios</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+          <tbody>
+            <tr class="camp" onclick="tog('a2c1')"><td><span class="caret" id="c-a2c1">▸</span> Ahorro 2026</td><td><span class="tag green">activa</span></td><td>$2,140.00</td><td>2.41%</td><td>$76.00</td><td class="grp-pixel">67</td><td class="grp-pixel">48</td><td class="grp-pixel">40</td><td class="grp-pixel">20</td><td class="grp-pixel">6</td><td class="cpl" data-v="31.94"></td><td class="int"><div title="Ahorro, Inversión, Finanzas personales">Ahorro, Inversión, Finanzas</div></td><td><span class="tag muted">ok</span></td></tr>
+            <tr class="detail" id="a2c1"><td colspan="13"><div class="subwrap"><table class="subtable">
+              <thead><tr><th rowspan="2">Anuncio</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Problema</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+              <tbody>
+                <tr><td>Ahorro · Carrusel</td><td><span class="tag green">activo</span></td><td>$1,300.00</td><td>2.60%</td><td>$72.00</td><td class="grp-pixel" style="font-weight:700">42</td><td class="grp-pixel">30</td><td class="grp-pixel">25</td><td class="grp-pixel">13</td><td class="grp-pixel">4</td><td class="cpl" data-v="30.95"></td><td><span class="tag muted">—</span></td></tr>
+                <tr><td>Ahorro · Reel</td><td><span class="tag green">activo</span></td><td>$840.00</td><td>2.10%</td><td>$82.00</td><td class="grp-pixel">25</td><td class="grp-pixel">18</td><td class="grp-pixel">15</td><td class="grp-pixel">7</td><td class="grp-pixel">2</td><td class="cpl" data-v="33.60"></td><td><span class="tag muted">—</span></td></tr>
+              </tbody>
+            </table></div></td></tr>
+            <tr class="camp" onclick="tog('a2c2')"><td><span class="caret" id="c-a2c2">▸</span> Retiro GarBa</td><td><span class="tag green">activa</span></td><td>$1,120.00</td><td>1.30%</td><td>$84.00</td><td class="grp-pixel">22</td><td class="grp-pixel">15</td><td class="grp-pixel">11</td><td class="grp-pixel">6</td><td class="grp-pixel">2</td><td class="cpl" data-v="50.91"></td><td class="int"><div title="Retiro, Pensiones">Retiro, Pensiones</div></td><td><span class="tag muted">ok</span></td></tr>
+            <tr class="detail" id="a2c2"><td colspan="13"><div class="subwrap"><table class="subtable">
+              <thead><tr><th rowspan="2">Anuncio</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Problema</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+              <tbody>
+                <tr><td>Retiro · Imagen</td><td><span class="tag green">activo</span></td><td>$1,120.00</td><td>1.30%</td><td>$84.00</td><td class="grp-pixel">22</td><td class="grp-pixel">15</td><td class="grp-pixel">11</td><td class="grp-pixel">6</td><td class="grp-pixel">2</td><td class="cpl" data-v="50.91"></td><td><span class="tag muted">—</span></td></tr>
+              </tbody>
+            </table></div></td></tr>
+          </tbody>
+        </table></div></td></tr>
+
+        <!-- ===== Elige Bien ===== -->
+        <tr class="acct" onclick="tog('a3')"><td><span class="caret" id="c-a3">▸</span> Elige Bien Seguros</td><td>1</td><td>$1,050</td><td class="grp-pixel" style="font-weight:700">10</td><td class="grp-pixel">7</td><td class="grp-pixel">5</td><td class="grp-pixel">4</td><td class="grp-pixel green-num">1</td><td class="cpl" data-v="105"></td><td class="int"><div title="Seguro de vida, Familia">Seguro de vida, Familia</div></td><td><span class="check yes">☑</span></td><td><span class="tag green">ok</span></td></tr>
+        <tr class="detail" id="a3"><td colspan="12"><div class="subwrap"><table class="subtable">
+          <thead><tr><th rowspan="2">Campaña</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Anuncios</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+          <tbody>
+            <tr class="camp" onclick="tog('a3c1')"><td><span class="caret" id="c-a3c1">▸</span> Vida Inteligente</td><td><span class="tag green">activa</span></td><td>$1,050.00</td><td>1.20%</td><td>$110.00</td><td class="grp-pixel">10</td><td class="grp-pixel">7</td><td class="grp-pixel">5</td><td class="grp-pixel">4</td><td class="grp-pixel">1</td><td class="cpl" data-v="105"></td><td class="int"><div title="Seguro de vida, Familia">Seguro de vida, Familia</div></td><td><span class="tag muted">ok</span></td></tr>
+            <tr class="detail" id="a3c1"><td colspan="13"><div class="subwrap"><table class="subtable">
+              <thead><tr><th rowspan="2">Anuncio</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Problema</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+              <tbody>
+                <tr><td>Vida · Video</td><td><span class="tag green">activo</span></td><td>$1,050.00</td><td>1.20%</td><td>$110.00</td><td class="grp-pixel">10</td><td class="grp-pixel">7</td><td class="grp-pixel">5</td><td class="grp-pixel">4</td><td class="grp-pixel">1</td><td class="cpl" data-v="105"></td><td><span class="tag muted">—</span></td></tr>
+              </tbody>
+            </table></div></td></tr>
+          </tbody>
+        </table></div></td></tr>
+
+        <!-- ===== INPAF ===== -->
+        <tr class="acct" onclick="tog('a4')"><td><span class="caret" id="c-a4">▸</span> INPAF</td><td>1</td><td>$980</td><td class="grp-pixel" style="font-weight:700">8</td><td class="grp-pixel">5</td><td class="grp-pixel">3</td><td class="grp-pixel">3</td><td class="grp-pixel">0</td><td class="cpl" data-v="122.5"></td><td class="int"><div title="Retiro, Afore, Ahorro">Retiro, Afore, Ahorro</div></td><td><span class="check no">☐</span></td><td><span class="tag green">ok</span></td></tr>
+        <tr class="detail" id="a4"><td colspan="12"><div class="subwrap"><table class="subtable">
+          <thead><tr><th rowspan="2">Campaña</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Anuncios</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+          <tbody>
+            <tr class="camp" onclick="tog('a4c1')"><td><span class="caret" id="c-a4c1">▸</span> Retiro Digital</td><td><span class="tag green">activa</span></td><td>$980.00</td><td>0.82%</td><td>$88.00</td><td class="grp-pixel">8</td><td class="grp-pixel">5</td><td class="grp-pixel">3</td><td class="grp-pixel">3</td><td class="grp-pixel">0</td><td class="cpl" data-v="122.5"></td><td class="int"><div title="Retiro, Afore, Ahorro">Retiro, Afore, Ahorro</div></td><td><span class="tag muted">ok</span></td></tr>
+            <tr class="detail" id="a4c1"><td colspan="13"><div class="subwrap"><table class="subtable">
+              <thead><tr><th rowspan="2">Anuncio</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Problema</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+              <tbody>
+                <tr><td>Retiro · Imagen</td><td><span class="tag green">activo</span></td><td>$980.00</td><td>0.82%</td><td>$88.00</td><td class="grp-pixel">8</td><td class="grp-pixel">5</td><td class="grp-pixel">3</td><td class="grp-pixel">3</td><td class="grp-pixel">0</td><td class="cpl" data-v="122.5"></td><td><span class="tag muted">—</span></td></tr>
+              </tbody>
+            </table></div></td></tr>
+          </tbody>
+        </table></div></td></tr>
+
+        <!-- ===== Integra (rechazo a nivel anuncio) ===== -->
+        <tr class="acct" onclick="tog('a5')"><td><span class="caret" id="c-a5">▸</span> Integra Seguro</td><td>1</td><td>$610</td><td class="grp-pixel" style="font-weight:700">5</td><td class="grp-pixel">2</td><td class="grp-pixel">1</td><td class="grp-pixel">1</td><td class="grp-pixel">0</td><td class="cpl" data-v="122"></td><td class="int"><div title="Gastos médicos, Salud">Gastos médicos, Salud</div></td><td><span class="check yes">☑</span></td><td><span class="tag red">1 rechazado</span></td></tr>
+        <tr class="detail" id="a5"><td colspan="12"><div class="subwrap"><table class="subtable">
+          <thead><tr><th rowspan="2">Campaña</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Anuncios</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+          <tbody>
+            <tr class="camp" onclick="tog('a5c1')"><td><span class="caret" id="c-a5c1">▸</span> Gastos Médicos</td><td><span class="tag amber">con problema</span></td><td>$610.00</td><td>0.75%</td><td>$120.00</td><td class="grp-pixel">5</td><td class="grp-pixel">2</td><td class="grp-pixel">1</td><td class="grp-pixel">1</td><td class="grp-pixel">0</td><td class="cpl" data-v="122"></td><td class="int"><div title="Gastos médicos, Salud">Gastos médicos, Salud</div></td><td><span class="tag red">1 rechazado</span></td></tr>
+            <tr class="detail" id="a5c1"><td colspan="13"><div class="subwrap"><table class="subtable">
+              <thead><tr><th rowspan="2">Anuncio</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Problema</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+              <tbody>
+                <tr><td>GMM · Video</td><td><span class="tag green">activo</span></td><td>$400.00</td><td>0.90%</td><td>$115.00</td><td class="grp-pixel">5</td><td class="grp-pixel">2</td><td class="grp-pixel">1</td><td class="grp-pixel">1</td><td class="grp-pixel">0</td><td class="cpl" data-v="80"></td><td><span class="tag muted">—</span></td></tr>
+                <tr><td>GMM · Imagen</td><td><span class="tag red">rechazado</span></td><td>$210.00</td><td>0.55%</td><td>$130.00</td><td class="grp-pixel">0</td><td class="grp-pixel">0</td><td class="grp-pixel">0</td><td class="grp-pixel">0</td><td class="grp-pixel">0</td><td class="cpl" data-v="0"></td><td><span class="tag red">política: salud</span></td></tr>
+              </tbody>
+            </table></div></td></tr>
+          </tbody>
+        </table></div></td></tr>
+
+        <!-- ===== Protege Bien ===== -->
+        <tr class="acct" onclick="tog('a6')"><td><span class="caret" id="c-a6">▸</span> Protege Bien</td><td>1</td><td>$760</td><td class="grp-pixel" style="font-weight:700">18</td><td class="grp-pixel">13</td><td class="grp-pixel">10</td><td class="grp-pixel">6</td><td class="grp-pixel green-num">2</td><td class="cpl" data-v="42.22"></td><td class="int"><div title="Seguro de vida, Protección familiar">Seguro de vida, Protección</div></td><td><span class="check yes">☑</span></td><td><span class="tag green">ok</span></td></tr>
+        <tr class="detail" id="a6"><td colspan="12"><div class="subwrap"><table class="subtable">
+          <thead><tr><th rowspan="2">Campaña</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Anuncios</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+          <tbody>
+            <tr class="camp" onclick="tog('a6c1')"><td><span class="caret" id="c-a6c1">▸</span> Protección Familiar</td><td><span class="tag green">activa</span></td><td>$760.00</td><td>1.90%</td><td>$70.00</td><td class="grp-pixel">18</td><td class="grp-pixel">13</td><td class="grp-pixel">10</td><td class="grp-pixel">6</td><td class="grp-pixel">2</td><td class="cpl" data-v="42.22"></td><td class="int"><div title="Seguro de vida, Protección familiar">Seguro de vida, Protección</div></td><td><span class="tag muted">ok</span></td></tr>
+            <tr class="detail" id="a6c1"><td colspan="13"><div class="subwrap"><table class="subtable">
+              <thead><tr><th rowspan="2">Anuncio</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Problema</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+              <tbody>
+                <tr><td>Protección · Carrusel</td><td><span class="tag green">activo</span></td><td>$760.00</td><td>1.90%</td><td>$70.00</td><td class="grp-pixel">18</td><td class="grp-pixel">13</td><td class="grp-pixel">10</td><td class="grp-pixel">6</td><td class="grp-pixel">2</td><td class="cpl" data-v="42.22"></td><td><span class="tag muted">—</span></td></tr>
+              </tbody>
+            </table></div></td></tr>
+          </tbody>
+        </table></div></td></tr>
+
+        <!-- ===== Advisors ===== -->
+        <tr class="acct" onclick="tog('a7')"><td><span class="caret" id="c-a7">▸</span> Advisors Centurion</td><td>1</td><td>$95</td><td class="grp-pixel" style="font-weight:700">1</td><td class="grp-pixel">1</td><td class="grp-pixel">1</td><td class="grp-pixel">0</td><td class="grp-pixel">0</td><td class="cpl" data-v="95"></td><td class="int"><div title="Gastos médicos mayores, Salud">GMM, Salud</div></td><td><span class="check no">☐</span></td><td><span class="tag green">ok</span></td></tr>
+        <tr class="detail" id="a7"><td colspan="12"><div class="subwrap"><table class="subtable">
+          <thead><tr><th rowspan="2">Campaña</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Anuncios</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+          <tbody>
+            <tr class="camp" onclick="tog('a7c1')"><td><span class="caret" id="c-a7c1">▸</span> Prospectos GMM</td><td><span class="tag green">activa</span></td><td>$95.00</td><td>1.40%</td><td>$80.00</td><td class="grp-pixel">1</td><td class="grp-pixel">1</td><td class="grp-pixel">1</td><td class="grp-pixel">0</td><td class="grp-pixel">0</td><td class="cpl" data-v="95"></td><td class="int"><div title="GMM, Salud">GMM, Salud</div></td><td><span class="tag muted">ok</span></td></tr>
+            <tr class="detail" id="a7c1"><td colspan="13"><div class="subwrap"><table class="subtable">
+              <thead><tr><th rowspan="2">Anuncio</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Problema</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+              <tbody>
+                <tr><td>GMM · Imagen</td><td><span class="tag green">activo</span></td><td>$95.00</td><td>1.40%</td><td>$80.00</td><td class="grp-pixel">1</td><td class="grp-pixel">1</td><td class="grp-pixel">1</td><td class="grp-pixel">0</td><td class="grp-pixel">0</td><td class="cpl" data-v="95"></td><td><span class="tag muted">—</span></td></tr>
+              </tbody>
+            </table></div></td></tr>
+          </tbody>
+        </table></div></td></tr>
+
+        <!-- ===== Ascénder ===== -->
+        <tr class="acct" onclick="tog('a8')"><td><span class="caret" id="c-a8">▸</span> Ascénder Promotoria Digital</td><td>1</td><td>$560</td><td class="grp-pixel" style="font-weight:700">5</td><td class="grp-pixel">3</td><td class="grp-pixel">2</td><td class="grp-pixel">2</td><td class="grp-pixel green-num">1</td><td class="cpl" data-v="112"></td><td class="int"><div title="Seguros, Emprendimiento">Seguros, Emprendimiento</div></td><td><span class="check yes">☑</span></td><td><span class="tag green">ok</span></td></tr>
+        <tr class="detail" id="a8"><td colspan="12"><div class="subwrap"><table class="subtable">
+          <thead><tr><th rowspan="2">Campaña</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Anuncios</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+          <tbody>
+            <tr class="camp" onclick="tog('a8c1')"><td><span class="caret" id="c-a8c1">▸</span> Promotoría Digital</td><td><span class="tag green">activa</span></td><td>$560.00</td><td>1.50%</td><td>$72.00</td><td class="grp-pixel">5</td><td class="grp-pixel">3</td><td class="grp-pixel">2</td><td class="grp-pixel">2</td><td class="grp-pixel">1</td><td class="cpl" data-v="112"></td><td class="int"><div title="Seguros, Emprendimiento">Seguros, Emprendimiento</div></td><td><span class="tag muted">ok</span></td></tr>
+            <tr class="detail" id="a8c1"><td colspan="13"><div class="subwrap"><table class="subtable">
+              <thead><tr><th rowspan="2">Anuncio</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Problema</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+              <tbody>
+                <tr><td>Promo · Reel</td><td><span class="tag green">activo</span></td><td>$560.00</td><td>1.50%</td><td>$72.00</td><td class="grp-pixel">5</td><td class="grp-pixel">3</td><td class="grp-pixel">2</td><td class="grp-pixel">2</td><td class="grp-pixel">1</td><td class="cpl" data-v="112"></td><td><span class="tag muted">—</span></td></tr>
+              </tbody>
+            </table></div></td></tr>
+          </tbody>
+        </table></div></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="legend">
+      <span><b style="color:var(--text)">CPL:</b></span>
+      <span><span class="dot" style="background:var(--green)"></span>&lt; $100</span>
+      <span><span class="dot" style="background:var(--amber)"></span>$100–120</span>
+      <span><span class="dot" style="background:var(--red)"></span>&gt; $120</span>
+      <span style="margin-left:16px"><b style="color:var(--text)">Leads/sem:</b></span>
+      <span><span class="dot" style="background:var(--green)"></span>≥ 14</span>
+      <span><span class="dot" style="background:var(--amber)"></span>7–13</span>
+      <span><span class="dot" style="background:var(--red)"></span>&lt; 7</span>
+    </div>
+    <div class="legend" style="margin-top:6px">
+      <span>Clic en <b style="color:var(--text)">cuenta</b> → campañas · clic en <b style="color:var(--text)">campaña</b> → anuncios (ver qué anuncio genera las conversiones).</span>
+    </div>
+  </section>
+
+  <!-- ================= NETUS ================= -->
+  <section id="netus">
+    <h1>Vista NetUs (campañas propias)</h1>
+    <div class="daterange">
+      <span class="lbl">Periodo:</span>
+      <select><option>Ayer</option><option selected>Últimos 7 días</option><option>Últimos 30 días</option><option>Este mes</option></select>
+      <span class="lbl">Últimos 7 días</span>
+    </div>
+    <h2>Cuentas publicitarias</h2>
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th rowspan="2">Cuenta</th><th rowspan="2">Camp.</th><th rowspan="2">Gasto</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Nuevo (sem)</th><th rowspan="2">Anuncios</th></tr>
+        <tr><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. enviadas</th><th class="grp-pixel">Registros compl.</th><th class="grp-pixel">Citas prog.</th><th class="grp-pixel">Ventas</th></tr>
+      </thead>
+      <tbody>
+        <tr class="acct" onclick="tog('n1')"><td><span class="caret" id="c-n1">▸</span> NetUs Meta Ads</td><td>1</td><td>$3,200</td><td class="grp-pixel" style="font-weight:700">88</td><td class="grp-pixel">61</td><td class="grp-pixel">50</td><td class="grp-pixel">25</td><td class="grp-pixel green-num">7</td><td class="cpl" data-v="36.36"></td><td class="int"><div title="Agentes de seguros, Reclutamiento, Ventas">Agentes, Reclutamiento, Ventas</div></td><td><span class="check yes">☑</span></td><td><span class="tag green">ok</span></td></tr>
+        <tr class="detail" id="n1"><td colspan="12"><div class="subwrap"><table class="subtable">
+          <thead><tr><th rowspan="2">Campaña</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Anuncios</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+          <tbody>
+            <tr class="camp" onclick="tog('n1c1')"><td><span class="caret" id="c-n1c1">▸</span> Reclutamiento Agentes</td><td><span class="tag green">activa</span></td><td>$3,200.00</td><td>1.80%</td><td>$52.00</td><td class="grp-pixel">88</td><td class="grp-pixel">61</td><td class="grp-pixel">50</td><td class="grp-pixel">25</td><td class="grp-pixel">7</td><td class="cpl" data-v="36.36"></td><td class="int"><div title="Agentes de seguros, Reclutamiento, Ventas">Agentes, Reclutamiento, Ventas</div></td><td><span class="tag muted">ok</span></td></tr>
+            <tr class="detail" id="n1c1"><td colspan="13"><div class="subwrap"><table class="subtable">
+              <thead><tr><th rowspan="2">Anuncio</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Problema</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+              <tbody>
+                <tr><td>Reclu · Video</td><td><span class="tag green">activo</span></td><td>$2,000.00</td><td>1.90%</td><td>$50.00</td><td class="grp-pixel" style="font-weight:700">56</td><td class="grp-pixel">40</td><td class="grp-pixel">33</td><td class="grp-pixel">16</td><td class="grp-pixel">5</td><td class="cpl" data-v="35.71"></td><td><span class="tag muted">—</span></td></tr>
+                <tr><td>Reclu · Imagen</td><td><span class="tag green">activo</span></td><td>$1,200.00</td><td>1.65%</td><td>$55.00</td><td class="grp-pixel">32</td><td class="grp-pixel">21</td><td class="grp-pixel">17</td><td class="grp-pixel">9</td><td class="grp-pixel">2</td><td class="cpl" data-v="37.50"></td><td><span class="tag muted">—</span></td></tr>
+              </tbody>
+            </table></div></td></tr>
+          </tbody>
+        </table></div></td></tr>
+
+        <tr class="acct" onclick="tog('n2')"><td><span class="caret" id="c-n2">▸</span> VozFlow</td><td>1</td><td>$540</td><td class="grp-pixel" style="font-weight:700">15</td><td class="grp-pixel">10</td><td class="grp-pixel">8</td><td class="grp-pixel">5</td><td class="grp-pixel green-num">1</td><td class="cpl" data-v="36"></td><td class="int"><div title="Automatización, Inteligencia artificial, Call center">Automatización, IA, Call center</div></td><td><span class="check no">☐</span></td><td><span class="tag green">ok</span></td></tr>
+        <tr class="detail" id="n2"><td colspan="12"><div class="subwrap"><table class="subtable">
+          <thead><tr><th rowspan="2">Campaña</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Intereses</th><th rowspan="2">Anuncios</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+          <tbody>
+            <tr class="camp" onclick="tog('n2c1')"><td><span class="caret" id="c-n2c1">▸</span> VozFlow Demo</td><td><span class="tag green">activa</span></td><td>$540.00</td><td>2.05%</td><td>$60.00</td><td class="grp-pixel">15</td><td class="grp-pixel">10</td><td class="grp-pixel">8</td><td class="grp-pixel">5</td><td class="grp-pixel">1</td><td class="cpl" data-v="36"></td><td class="int"><div title="Automatización, IA, Call center">Automatización, IA, Call center</div></td><td><span class="tag muted">ok</span></td></tr>
+            <tr class="detail" id="n2c1"><td colspan="13"><div class="subwrap"><table class="subtable">
+              <thead><tr><th rowspan="2">Anuncio</th><th rowspan="2">Estado</th><th colspan="3" class="grp">Rendimiento</th><th colspan="5" class="grp grp-pixel">Eventos del pixel</th><th rowspan="2">CPL</th><th rowspan="2">Problema</th></tr><tr><th>Gasto</th><th>CTR</th><th>CPM</th><th class="grp-pixel">Clientes pot.</th><th class="grp-pixel">Solic. env.</th><th class="grp-pixel">Registros</th><th class="grp-pixel">Citas</th><th class="grp-pixel">Ventas</th></tr></thead>
+              <tbody>
+                <tr><td>Demo · Video</td><td><span class="tag green">activo</span></td><td>$540.00</td><td>2.05%</td><td>$60.00</td><td class="grp-pixel">15</td><td class="grp-pixel">10</td><td class="grp-pixel">8</td><td class="grp-pixel">5</td><td class="grp-pixel">1</td><td class="cpl" data-v="36"></td><td><span class="tag muted">—</span></td></tr>
+              </tbody>
+            </table></div></td></tr>
+          </tbody>
+        </table></div></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- ================= CUENTAS ================= -->
+  <section id="cuentas">
+    <h1>Cuentas · Configuración</h1>
+    <div class="callout">
+      <b>¿Qué es esta pantalla?</b> Aquí registras <b>una sola vez</b> cada cuenta publicitaria de Meta y la conectas con la subcuenta de GHL del cliente. Esto alimenta las vistas <b>Clientes</b> y <b>NetUs</b> y permite cruzar leads → citas → ventas.
+    </div>
+    <form class="row" onsubmit="return false">
+      <div><label>Nombre</label><input class="f" placeholder="Vique Finanzas" /><div class="fh">Cómo se mostrará el cliente en el dashboard.</div></div>
+      <div><label>Meta ad account id</label><input class="f" placeholder="2206188576811692" /><div class="fh">ID numérico de la cuenta en el Administrador de anuncios de Meta. De aquí se jalan campañas y métricas.</div></div>
+      <div><label>Moneda</label><select class="f"><option>MXN</option><option>USD</option><option>INR</option></select><div class="fh">Moneda de la cuenta. Se usa para mostrar y convertir a USD.</div></div>
+      <div><label>Vista</label><select class="f"><option>client</option><option>netus</option></select><div class="fh">¿Va en la vista <b>Clientes</b> o en <b>NetUs</b> (campañas propias)?</div></div>
+      <div><label>GHL location id</label><input class="f" placeholder="n1Jw67thJs…" /><div class="fh">ID de la subcuenta de GHL del cliente. De aquí salen leads, citas y ventas.</div></div>
+      <div><label>GHL PIT</label><input class="f" type="password" placeholder="pit-…" /><div class="fh">Token de acceso (Private Integration Token) de esa subcuenta GHL. Es la "llave" para leer sus datos. Se guarda seguro.</div></div>
+      <div><label>Campo UTM</label><input class="f" value="utm_campaign" /><div class="fh">Campo del contacto en GHL con la campaña de origen. Es lo que une cada lead/cita/venta con su campaña de Meta.</div></div>
+      <div><label>&nbsp;</label><button class="save">Guardar</button><div class="fh">Guarda o actualiza la cuenta.</div></div>
+    </form>
+    <h2>Cuentas registradas</h2>
+    <p class="hint">Cuentas ya dadas de alta. En <b>PIT</b>: "•••• ok" = token cargado · "falta" = pendiente de agregar el token de GHL.</p>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>Cuenta</th><th>Meta ID</th><th>Vista</th><th>Moneda</th><th>GHL location</th><th>PIT</th><th>Campo UTM</th><th>Activa</th></tr></thead>
+      <tbody>
+        <tr><td>Vique Finanzas</td><td class="hint">2206188576811692</td><td>client</td><td>MXN</td><td class="hint">n1Jw67thJs…</td><td><span class="tag green">•••• ok</span></td><td class="hint">utm_campaign</td><td>☑</td></tr>
+        <tr><td>GarBa Soluciones</td><td class="hint">1337028394081836</td><td>client</td><td>MXN</td><td class="hint">—</td><td><span class="tag amber">falta</span></td><td class="hint">utm_campaign</td><td>☑</td></tr>
+        <tr><td>NetUs Meta Ads</td><td class="hint">1110332844032940</td><td>netus</td><td>MXN</td><td class="hint">n1Jw67thJs…</td><td><span class="tag green">•••• ok</span></td><td class="hint">utm_campaign</td><td>☑</td></tr>
+        <tr><td>VozFlow</td><td class="hint">1016648587353231</td><td>netus</td><td>USD</td><td class="hint">—</td><td><span class="tag amber">falta</span></td><td class="hint">utm_campaign</td><td>☑</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+</div>
+<script>
+  document.querySelectorAll('.nav button').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.nav button').forEach(function(x){x.classList.remove('active')});
+      document.querySelectorAll('section').forEach(function(s){s.classList.remove('active')});
+      b.classList.add('active');
+      document.getElementById(b.dataset.tab).classList.add('active');
+    });
+  });
+  function tog(id){
+    event.stopPropagation();
+    document.getElementById(id).classList.toggle('open');
+    var c=document.getElementById('c-'+id); c.classList.toggle('open'); c.textContent=c.classList.contains('open')?'▾':'▸';
+  }
+  function onPreset(){
+    var p=document.getElementById('preset').value;
+    document.getElementById('customRange').style.display = p==='custom'?'inline':'none';
+    if(p!=='custom') document.getElementById('caption').textContent = p+' · muestra de 8 de tus 27 cuentas con acceso';
+  }
+  function applyCustom(){
+    var s=document.getElementById('since').value, u=document.getElementById('until').value;
+    document.getElementById('caption').textContent = s+' a '+u+' · muestra de 8 de tus 27 cuentas con acceso';
+  }
+  document.querySelectorAll('.cpl').forEach(function(td){
+    var v=parseFloat(td.dataset.v);
+    if(!v){td.textContent='—';return;}
+    td.textContent='$'+v.toFixed(2);
+    td.classList.add(v<=100?'cpl-green':(v<=120?'cpl-amber':'cpl-red'));
+  });
+  // semáforo de leads de la semana (columna Clientes potenciales, nivel cuenta): >=14 verde, 7-13 ámbar, <7 rojo
+  document.querySelectorAll('tr.acct').forEach(function(tr){
+    var c=tr.querySelector('td.grp-pixel'); if(!c) return;
+    var v=parseInt(c.textContent.replace(/[^0-9\-]/g,''),10); if(isNaN(v)) return;
+    c.classList.add(v>=14?'lead-green':(v>=7?'lead-amber':'lead-red'));
+  });
+</script>
+</body>
+</html>
