@@ -14,11 +14,18 @@ payload JSON y lo carga con `node scripts/load.mjs`. El dashboard (Vercel) solo 
 - El mapa `cockpit.clients` cargado (cuentas Meta ↔ subcuenta GHL + PIT + moneda + segment).
 - Conector **MCP Meta Ads** disponible en el contexto de la corrida (ver riesgo #1 del plan).
 
-## 1. Determinar el universo de cuentas
-1. Leer el mapa de clientes activos desde Postgres:
-   `psql "$DATABASE_URL" -Atc "select meta_ad_account_id, currency, segment, ghl_location_id, ghl_pit, ghl_utm_field from cockpit.clients where active"`
-2. (Opcional, para detectar altas nuevas) `ads_get_ad_accounts` y comparar contra el mapa;
-   si aparece una cuenta nueva consultable, avisar en el resumen para alta manual.
+## 1. Determinar el universo de cuentas (con AUTO-INTEGRACIÓN)
+1. `ads_get_ad_accounts` (paginar si hay `next_cursor`) → lista completa de cuentas con acceso.
+2. Leer las ya registradas: `select meta_ad_account_id from cockpit.clients`.
+3. **Auto-integrar las que YA se pueden leer y NO estén registradas:** para cada cuenta con
+   `is_queryable = true` **y** `is_ads_mcp_enabled = true` que no esté en `clients`, insertarla
+   automáticamente (name = `ad_account_name` o `"Cuenta {id}"`, `currency`, `segment = netus` si
+   `business_id = 2340785922946682` (NetUs), si no `client`) y jalar sus métricas ese día.
+4. **Re-checar las bloqueadas:** las cuentas con `is_ads_mcp_enabled = false` (rollout de Meta) o
+   `is_queryable = false` (UNSETTLED/cerradas) aún NO se pueden leer. En cuanto Meta las habilite o
+   se liquide el saldo, el paso 3 **las integra solas** (no requiere intervención).
+5. Ingestar solo las cuentas `is_queryable && is_ads_mcp_enabled` (activas del mapa).
+6. Reportar en el resumen: **cuentas nuevas integradas hoy** + cuántas **siguen pendientes** y por qué.
 
 ## 2. Por cada cuenta Meta (loop) — vía MCP
 Usar `date_preset: YESTERDAY` (o `time_range` con la fecha de ayer). Herramientas y mapeo:
