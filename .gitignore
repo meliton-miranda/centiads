@@ -5,3 +5,4 @@ node_modules/
 ingest/staging/
 *.log
 .DS_Store
+preview/
