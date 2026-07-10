@@ -242,7 +242,7 @@ def build_page(tab, preset, since, until):
         loc, has_pit, utm = (a[4] or ""), a[5], (a[6] or "utm_campaign")
         pit_ph = "•••• guardado (vacío = conservar)" if has_pit else "pit-..."
         pit_tag = '<span class="tag g">•••• ok</span>' if has_pit else '<span class="tag a">falta</span>'
-        ghl_rows += (f'<tr><td>{a[1]}</td><td>{a[2]}</td>'
+        ghl_rows += (f'<tr><td><input form="g{i}" name="name" value="{a[1]}" style="width:170px"></td><td>{a[2]}</td>'
                      f'<td><input form="g{i}" name="loc" value="{loc}" placeholder="n1Jw67thJs…" style="width:150px"></td>'
                      f'<td><input form="g{i}" name="pit" type="password" placeholder="{pit_ph}" style="width:180px"></td>'
                      f'<td><input form="g{i}" name="utm" value="{utm}" style="width:120px"></td>'
@@ -250,8 +250,9 @@ def build_page(tab, preset, since, until):
     ghl_on = " on" if tab == "ghl" else ""
     ghl = (f'<section id="ghl" class="v{ghl_on}"><div class="callout">Conecta cada subcuenta de Go High Level con su '
            f'<b>Private Integration Token (PIT)</b> para traer <b>leads reales, citas y ventas</b>. '
-           f'Pega el <b>GHL location</b> y el <b>PIT</b> de cada cuenta y dale <b>Guardar</b> (el PIT se guarda seguro).</div>'
-           f'{forms}<div class="ts"><table><thead><tr><th>Cuenta</th><th>Vista</th>'
+           f'Aquí también puedes <b>editar el nombre</b> de cada cuenta. Pega el <b>GHL location</b> y el <b>PIT</b>, '
+           f'y dale <b>Guardar</b> (el PIT se guarda seguro).</div>'
+           f'{forms}<div class="ts"><table><thead><tr><th>Nombre (editable)</th><th>Vista</th>'
            f'<th>GHL location</th><th>PIT</th><th>Campo UTM</th><th>Estado</th><th></th></tr></thead>'
            f'<tbody>{ghl_rows}</tbody></table></div></section>')
 
@@ -259,7 +260,7 @@ def build_page(tab, preset, since, until):
         on = " on" if tab == t else ""
         return f'<a class="nl{on}" href="/?tab={t}&preset={preset}&since={since or ""}&until={until or ""}">{label}</a>'
 
-    return PAGE.format(nav=navlink("client", "Clientes") + navlink("netus", "NetUs") + navlink("ghl", "Conexiones GHL"),
+    return PAGE.format(nav=navlink("client", "Clientes") + navlink("netus", "NetUs") + navlink("ghl", "Cuentas · GHL"),
                        client=view("client", "Clientes"), netus=view("netus", "NetUs (campañas propias)"), ghl=ghl)
 
 
@@ -332,6 +333,7 @@ class Handler(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length", "0"))
         data = urllib.parse.parse_qs(self.rfile.read(n).decode("utf-8"))
         acct = (data.get("acct", [""])[0]).strip()
+        name = (data.get("name", [""])[0]).strip()
         loc = (data.get("loc", [""])[0]).strip()
         pit = (data.get("pit", [""])[0]).strip()
         utm = (data.get("utm", ["utm_campaign"])[0]).strip() or "utm_campaign"
@@ -339,10 +341,11 @@ class Handler(BaseHTTPRequestHandler):
             con = connect()
             try:
                 con.run("set search_path to cockpit, public")
-                con.run("""update clients set ghl_location_id = :loc, ghl_utm_field = :utm,
+                con.run("""update clients set name = coalesce(nullif(:name, ''), name),
+                    ghl_location_id = :loc, ghl_utm_field = :utm,
                     ghl_pit = coalesce(nullif(:pit, ''), ghl_pit), updated_at = now()
                     where meta_ad_account_id = :acct""",
-                    loc=(loc or None), utm=utm, pit=pit, acct=acct)
+                    name=name, loc=(loc or None), utm=utm, pit=pit, acct=acct)
             finally:
                 con.close()
         self.send_response(303)
