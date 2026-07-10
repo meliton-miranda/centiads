@@ -78,35 +78,55 @@ def main():
         print("Sin pipelines en esta location.")
         return
 
-    rows = []
-    for st in pipe["stages"]:
-        q = urllib.parse.urlencode({"location_id": loc, "pipeline_id": pipe["id"],
-                                    "pipeline_stage_id": st["id"], "status": "all", "limit": 1})
-        n = int((api(pit, f"/opportunities/search?{q}").get("meta") or {}).get("total") or 0)
-        rows.append((st["id"], st["name"], n))
-    total = sum(n for _, _, n in rows)
-    # citas = desde la primera etapa "de cita" en adelante (por posición del pipeline)
-    idx = next((i for i, (_, sn, _) in enumerate(rows) if any(k in sn.lower() for k in APT)), None)
-    citas = sum(n for _, _, n in rows[idx:]) if idx is not None else 0
-    # ventas = oportunidades GANADAS (status=won) — universal entre clientes
-    q = urllib.parse.urlencode({"location_id": loc, "pipeline_id": pipe["id"], "status": "won", "limit": 1})
-    ventas = int((api(pit, f"/opportunities/search?{q}").get("meta") or {}).get("total") or 0)
+    stage_order = {st["id"]: i for i, st in enumerate(pipe["stages"])}
+    apt_idx = next((i for i, st in enumerate(pipe["stages"])
+                    if any(k in (st.get("name") or "").lower() for k in APT)), None)
+
+    # paginar TODAS las oportunidades y agrupar POR DÍA (fecha de creación del prospecto)
+    from collections import defaultdict
+    daily = defaultdict(lambda: [0, 0, 0])  # día -> [leads, citas, ventas]
+    sa = sai = None
+    while True:
+        p = {"location_id": loc, "pipeline_id": pipe["id"], "status": "all", "limit": 100}
+        if sa:
+            p["startAfter"] = sa
+            p["startAfterId"] = sai
+        res = api(pit, "/opportunities/search?" + urllib.parse.urlencode(p))
+        opps = res.get("opportunities") or []
+        for o in opps:
+            day = (o.get("createdAt") or "")[:10]
+            if not day:
+                continue
+            si = stage_order.get(o.get("pipelineStageId"))
+            is_venta = o.get("status") == "won"
+            is_cita = is_venta or (apt_idx is not None and si is not None and si >= apt_idx)
+            daily[day][0] += 1
+            daily[day][1] += 1 if is_cita else 0
+            daily[day][2] += 1 if is_venta else 0
+        m = res.get("meta") or {}
+        if not opps or not m.get("nextPage"):
+            break
+        sa, sai = m.get("startAfter"), m.get("startAfterId")
+        if not sa:
+            break
 
     con = db()
     con.run("set search_path to cockpit, public")
     con.run("""update clients set ghl_location_id = :l, ghl_pit = :pit, ghl_utm_field = 'utm_campaign'
                where meta_ad_account_id = :a""", l=loc, pit=pit, a=acct)
-    today = datetime.date.today().isoformat()
-    store = rows + [("__CITAS__", "CITAS", citas), ("__VENTAS__", "VENTAS", ventas)]
-    for sid, sname, n in store:
-        con.run("""insert into ghl_funnel_daily(ghl_location_id,date,pipeline_id,stage_id,stage_name,opp_count)
-                   values(:l,:d,:p,:s,:sn,:c)
-                   on conflict (ghl_location_id,date,stage_id)
-                   do update set opp_count = excluded.opp_count, stage_name = excluded.stage_name, synced_at = now()""",
-                l=loc, d=today, p=pipe["id"], s=sid, sn=sname, c=n)
+    con.run("delete from ghl_funnel_daily where ghl_location_id = :l", l=loc)  # refresco completo
+    tc = tv = 0
+    for day, (leads, citas, ventas) in daily.items():
+        tc += citas
+        tv += ventas
+        for sid, sname, c in (("__LEADS__", "LEADS", leads), ("__CITAS__", "CITAS", citas), ("__VENTAS__", "VENTAS", ventas)):
+            con.run("""insert into ghl_funnel_daily(ghl_location_id,date,pipeline_id,stage_id,stage_name,opp_count)
+                       values(:l,:d,:p,:s,:sn,:c)
+                       on conflict (ghl_location_id,date,stage_id)
+                       do update set opp_count = excluded.opp_count, synced_at = now()""",
+                    l=loc, d=day, p=pipe["id"], s=sid, sn=sname, c=c)
     con.close()
-    print(f"OK · pipeline='{pipe['name']}' · total={total} · CITAS={citas} · VENTAS(won)={ventas}")
-    print("por etapa:", {sn: c for _, sn, c in rows})
+    print(f"OK · pipeline='{pipe['name']}' · días con datos={len(daily)} · CITAS(total)={tc} · VENTAS(total)={tv}")
 
 
 if __name__ == "__main__":

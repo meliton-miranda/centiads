@@ -138,7 +138,8 @@ def fetch(con, df, dt):
     ghl = con.run("""select ghl_location_id,
         sum(opp_count) filter (where stage_name = 'CITAS') as citas,
         sum(opp_count) filter (where stage_name = 'VENTAS') as ventas
-        from ghl_funnel_daily group by ghl_location_id""")
+        from ghl_funnel_daily where date >= :df and date <= :dt
+        group by ghl_location_id""", df=df, dt=dt)
     return accts, camps, ads, ghl
 
 
