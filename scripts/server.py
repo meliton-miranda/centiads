@@ -134,7 +134,13 @@ def fetch(con, df, dt):
         sum(ev_solicitud), sum(ev_registro), sum(ev_cita), sum(ev_venta)
         from meta_ad_daily where date >= :df and date <= :dt
         group by meta_ad_account_id, campaign_id, ad_id""", df=df, dt=dt)
-    return accts, camps, ads
+    # GHL: citas (agendó en adelante) y ventas (Contrató) por location — foto actual del embudo
+    ghl = con.run("""select ghl_location_id,
+        sum(opp_count) filter (where stage_name in
+            ('Agendó cita','Confirmó cita','Asistió','Agente Calificado','Seguimiento','Contrató')) as citas,
+        sum(opp_count) filter (where stage_name = 'Contrató') as ventas
+        from ghl_funnel_daily group by ghl_location_id""")
+    return accts, camps, ads, ghl
 
 
 def crow(r):
@@ -156,9 +162,10 @@ def build_page(tab, preset, since, until):
     df, dt = compute_range(preset, since, until)
     con = connect()
     try:
-        accts, camps, ads = fetch(con, df, dt)
+        accts, camps, ads, ghl = fetch(con, df, dt)
     finally:
         con.close()
+    ghl_by_loc = {r[0]: {"citas": int(r[1] or 0), "ventas": int(r[2] or 0)} for r in ghl}
 
     camps_by, ads_by = {}, {}
     for r in camps:
@@ -215,6 +222,9 @@ def build_page(tab, preset, since, until):
             acct, name = a[0], a[1]
             cs = camps_by.get(acct, [])
             agg = {k: sum(c[k] for c in cs) for k in ("spend", "leads", "ev_solicitud", "ev_registro", "ev_cita", "ev_venta")}
+            g = ghl_by_loc.get(a[4]) if len(a) > 4 else None
+            if g:  # citas y ventas reales desde GHL (sobrescriben el pixel)
+                agg["ev_cita"], agg["ev_venta"] = g["citas"], g["ventas"]
             rid = f"{seg}{i}"
             rej = rej_by.get(acct, 0)
             anun = (f'<td><span class="tag r">{rej} con problema</span></td>' if rej else '<td><span class="tag m">ok</span></td>')
