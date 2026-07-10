@@ -275,7 +275,7 @@ def daterange_bar(seg, preset, since, until, df, dt):
 
 
 PAGE = """<!doctype html><html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>NetUs Ads Cockpit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Centiads by NetUs</title>
 <style>
 :root{{--bg:#0b0f17;--panel:#131a26;--p2:#0f1520;--bd:#223046;--tx:#e6edf6;--mu:#8ea0b8;--ac:#4f9cff;--r:#ff5c72;--a:#ffbf47;--g:#37d39a}}
 *{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}}
@@ -298,7 +298,7 @@ th:first-child,td:first-child{{text-align:left}}th{{color:var(--mu);font-weight:
 .ts input{{background:var(--p2);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:5px 8px}}
 .v{{display:none}}.v.on{{display:block}}
 </style></head><body>
-<nav class="nav"><span class="br">🛰️ NetUs Ads Cockpit</span>{nav}</nav>
+<nav class="nav"><span class="br">🛰️ Centiads <span style="color:var(--mu);font-weight:400;font-size:12px">by NetUs</span></span>{nav}</nav>
 <div class="wrap">{client}{netus}{ghl}</div>
 <script>
 function t(id){{event.stopPropagation();document.getElementById(id).classList.toggle('on');

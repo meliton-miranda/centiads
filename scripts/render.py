@@ -211,7 +211,7 @@ def render():
                 f'<tbody>{ghl_rows}</tbody></table></div></section>')
 
     html = f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>NetUs Ads Cockpit — DATOS REALES</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Centiads by NetUs — DATOS REALES</title>
 <style>
 :root{{--bg:#0b0f17;--panel:#131a26;--p2:#0f1520;--bd:#223046;--tx:#e6edf6;--mu:#8ea0b8;--ac:#4f9cff;--r:#ff5c72;--a:#ffbf47;--g:#37d39a}}
 *{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}}
@@ -234,7 +234,7 @@ th:first-child,td:first-child{{text-align:left}}th{{color:var(--mu);font-weight:
 section{{display:none}}section.on{{display:block}}
 </style></head><body>
 <div class="bn">🟢 <b>DATOS REALES</b> de tu base en EasyPanel · últimos 7 días · cuenta → campañas → anuncios.</div>
-<nav class="nav"><span class="br">🛰️ NetUs Ads Cockpit</span>
+<nav class="nav"><span class="br">🛰️ Centiads <span style="color:var(--mu);font-weight:400;font-size:12px">by NetUs</span></span>
 <button data-t="client" class="on">Clientes</button><button data-t="netus">NetUs</button><button data-t="ghl">Conexiones GHL</button></nav>
 <div class="wrap">
 {view('client', 'Vista Clientes').replace('<section id="client">', '<section id="client" class="on">')}
