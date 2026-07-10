@@ -6,3 +6,4 @@ ingest/staging/
 *.log
 .DS_Store
 preview/
+.ghl_token

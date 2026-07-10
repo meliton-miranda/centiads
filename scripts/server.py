@@ -136,9 +136,8 @@ def fetch(con, df, dt):
         group by meta_ad_account_id, campaign_id, ad_id""", df=df, dt=dt)
     # GHL: citas (agendó en adelante) y ventas (Contrató) por location — foto actual del embudo
     ghl = con.run("""select ghl_location_id,
-        sum(opp_count) filter (where stage_name in
-            ('Agendó cita','Confirmó cita','Asistió','Agente Calificado','Seguimiento','Contrató')) as citas,
-        sum(opp_count) filter (where stage_name = 'Contrató') as ventas
+        sum(opp_count) filter (where stage_name = 'CITAS') as citas,
+        sum(opp_count) filter (where stage_name = 'VENTAS') as ventas
         from ghl_funnel_daily group by ghl_location_id""")
     return accts, camps, ads, ghl
 
