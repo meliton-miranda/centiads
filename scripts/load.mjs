@@ -161,6 +161,20 @@ async function run() {
             );
           }
         }
+        if (acct.ad_creatives) {
+          await client.query(`delete from cockpit.ad_creatives where meta_ad_account_id=$1`, [A]);
+          for (const k of acct.ad_creatives) {
+            await client.query(
+              `insert into cockpit.ad_creatives
+                 (meta_ad_account_id,ad_id,creative_id,thumbnail_url,image_url,title,body,
+                  call_to_action_type,link_url)
+               values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+               on conflict (meta_ad_account_id,ad_id) do nothing`,
+              [A, k.ad_id, k.creative_id, k.thumbnail_url, k.image_url, k.title, k.body,
+               k.call_to_action_type, k.link_url],
+            );
+          }
+        }
         if (acct.adset_interests) {
           await client.query(`delete from cockpit.adset_interests where meta_ad_account_id=$1`, [A]);
           for (const i of acct.adset_interests) {
@@ -203,18 +217,20 @@ async function run() {
             `insert into cockpit.attribution
                (ghl_location_id,opportunity_id,contact_id,meta_ad_account_id,campaign_id,utm_raw,
                 current_stage,is_appointment,is_sale,lead_date,appointment_date,sale_date,
-                monetary_value,currency)
-             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                monetary_value,currency,utm_content,is_attended)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
              on conflict (ghl_location_id,opportunity_id) do update set
                contact_id=excluded.contact_id, meta_ad_account_id=excluded.meta_ad_account_id,
                campaign_id=excluded.campaign_id, utm_raw=excluded.utm_raw,
                current_stage=excluded.current_stage, is_appointment=excluded.is_appointment,
                is_sale=excluded.is_sale, lead_date=excluded.lead_date,
                appointment_date=excluded.appointment_date, sale_date=excluded.sale_date,
-               monetary_value=excluded.monetary_value, currency=excluded.currency, synced_at=now()`,
+               monetary_value=excluded.monetary_value, currency=excluded.currency,
+               utm_content=excluded.utm_content, is_attended=excluded.is_attended, synced_at=now()`,
             [L, a.opportunity_id, a.contact_id, a.meta_ad_account_id, a.campaign_id, a.utm_raw,
              a.current_stage, a.is_appointment ?? false, a.is_sale ?? false,
-             a.lead_date, a.appointment_date, a.sale_date, a.monetary_value, a.currency],
+             a.lead_date, a.appointment_date, a.sale_date, a.monetary_value, a.currency,
+             a.utm_content ?? null, a.is_attended ?? false],
           );
         }
         await client.query('commit');

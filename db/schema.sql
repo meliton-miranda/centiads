@@ -160,6 +160,72 @@ create table if not exists attribution (
 create index if not exists idx_attr_campaign on attribution(campaign_id);
 create index if not exists idx_attr_acct on attribution(meta_ad_account_id);
 
+-- 7b) Creativos por anuncio (imagen/miniatura para la vista "Control de Ads") --
+-- Foto actual: un renglón por ad. Se refresca en cada ingesta.
+create table if not exists ad_creatives (
+  meta_ad_account_id  text not null,
+  ad_id               text not null,
+  creative_id         text,
+  thumbnail_url       text,                          -- URL firmada de Meta (expira; se refresca a diario)
+  image_url           text,
+  title               text,                          -- headline
+  body                text,                          -- texto principal
+  call_to_action_type text,
+  link_url            text,
+  synced_at           timestamptz not null default now(),
+  primary key (meta_ad_account_id, ad_id)
+);
+
+-- Atribución a nivel ANUNCIO: utm_content trae el ad_id (o el nombre del anuncio) y
+-- "asistió" separa a quien llegó a la cita de quien solo la agendó.
+alter table attribution add column if not exists utm_content text;
+alter table attribution add column if not exists is_attended boolean not null default false;
+
+-- Meta de CPL por cuenta (Control de Ads: semáforo y detección de "fugas").
+alter table clients add column if not exists target_cpl numeric(12,2) not null default 100;
+
+-- 7c) Centiads app: usuarios, ajustes, tablero por cuenta y banca de creativos --
+create extension if not exists pgcrypto;  -- gen_random_uuid() (nativo en PG13+, por si acaso)
+
+create table if not exists app_users (
+  email      text primary key check (email = lower(email)),
+  pass_hash  text not null,                         -- pbkdf2$rounds$salt$hash (scripts/add_user.py)
+  role       text not null default 'admin',
+  active     boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists app_settings (         -- session_secret (auto) e ingest_key_sha256
+  key   text primary key,
+  value text not null
+);
+
+create table if not exists centiads_payloads (    -- tablero de Control de Ads (preview/build_*.py → /api/ingest)
+  account_id text primary key,
+  name       text not null,
+  payload    jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists centiads_banca (       -- creativos en espera (imagen dentro de la fila)
+  id          uuid primary key default gen_random_uuid(),
+  account_id  text not null,
+  campaign_id text,
+  name        text not null,
+  headline    text,
+  body        text,
+  image       bytea not null,                      -- el diseño (PNG/JPG/WebP, máx 10 MB)
+  image_type  text not null,
+  status      text not null default 'en_espera'
+              check (status in ('en_espera', 'publicar', 'publicado', 'descartado')),
+  meta_ad_id  text,
+  notes       text,
+  created_by  text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists idx_banca_account on centiads_banca(account_id, status);
+
 -- 8) Tipos de cambio para normalizar a USD -----------------------------------
 -- rate_to_usd: 1 unidad de `currency` = rate_to_usd USD (USD se guarda con 1.0)
 create table if not exists fx_rates (

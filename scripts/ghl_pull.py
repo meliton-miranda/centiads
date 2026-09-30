@@ -22,6 +22,16 @@ BASE = "https://services.leadconnectorhq.com"
 VER = "2021-07-28"
 # palabras que marcan una etapa "de cita en adelante" (varía por cliente)
 APT = ("cita", "agend", "entrevista", "asist", "confirm", "concert", "reuni", "sesion", "consult")
+ATT = ("asist",)  # etapa "asistió" (llegó a la cita)
+
+
+def first_touch(o):
+    """UTMs del primer contacto: (utm_id = campaña Meta, utm_content = anuncio, url cruda)."""
+    at = o.get("attributions") or []
+    f = ([a for a in at if a.get("isFirst")] or at[:1] or [{}])[0]
+    url = f.get("pageUrl") or f.get("url") or ""
+    q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+    return (q.get("utm_id", [None])[0], f.get("utmContent") or q.get("utm_content", [None])[0], url or None)
 
 
 def load_env():
@@ -81,10 +91,14 @@ def main():
     stage_order = {st["id"]: i for i, st in enumerate(pipe["stages"])}
     apt_idx = next((i for i, st in enumerate(pipe["stages"])
                     if any(k in (st.get("name") or "").lower() for k in APT)), None)
+    att_idx = next((i for i, st in enumerate(pipe["stages"])
+                    if any(k in (st.get("name") or "").lower() for k in ATT)), None)
+    stage_name = {st["id"]: st.get("name") for st in pipe["stages"]}
 
     # paginar TODAS las oportunidades y agrupar POR DÍA (fecha de creación del prospecto)
     from collections import defaultdict
     daily = defaultdict(lambda: [0, 0, 0])  # día -> [leads, citas, ventas]
+    attrib = []  # una fila por oportunidad con UTM de campaña Meta
     sa = sai = None
     while True:
         p = {"location_id": loc, "pipeline_id": pipe["id"], "status": "all", "limit": 100}
@@ -103,6 +117,12 @@ def main():
             daily[day][0] += 1
             daily[day][1] += 1 if is_cita else 0
             daily[day][2] += 1 if is_venta else 0
+            cid, content, url = first_touch(o)
+            if cid:
+                is_att = is_venta or (att_idx is not None and si is not None and si >= att_idx)
+                attrib.append(dict(opp=o["id"], contact=o.get("contactId"), cid=cid, content=content, url=url,
+                                   stage=stage_name.get(o.get("pipelineStageId")), apt=is_cita, att=is_att,
+                                   sale=is_venta, day=day, value=o.get("monetaryValue") or 0))
         m = res.get("meta") or {}
         if not opps or not m.get("nextPage"):
             break
@@ -125,8 +145,17 @@ def main():
                        on conflict (ghl_location_id,date,stage_id)
                        do update set opp_count = excluded.opp_count, synced_at = now()""",
                     l=loc, d=day, p=pipe["id"], s=sid, sn=sname, c=c)
+    con.run("delete from attribution where ghl_location_id = :l", l=loc)  # refresco completo
+    for r in attrib:
+        con.run("""insert into attribution(ghl_location_id,opportunity_id,contact_id,meta_ad_account_id,
+                   campaign_id,utm_raw,utm_content,current_stage,is_appointment,is_attended,is_sale,
+                   lead_date,monetary_value)
+                   values(:l,:o,:c,:a,:cid,:u,:uc,:st,:ap,:at,:sa,:d,:v)""",
+                l=loc, o=r["opp"], c=r["contact"], a=acct, cid=r["cid"], u=r["url"], uc=r["content"],
+                st=r["stage"], ap=r["apt"], at=r["att"], sa=r["sale"], d=r["day"], v=r["value"])
     con.close()
-    print(f"OK · pipeline='{pipe['name']}' · días con datos={len(daily)} · CITAS(total)={tc} · VENTAS(total)={tv}")
+    print(f"OK · pipeline='{pipe['name']}' · días con datos={len(daily)} · CITAS(total)={tc} · VENTAS(total)={tv}"
+          f" · oportunidades con UTM de Meta={len(attrib)}")
 
 
 if __name__ == "__main__":

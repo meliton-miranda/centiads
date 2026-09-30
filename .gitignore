@@ -7,3 +7,5 @@ ingest/staging/
 .DS_Store
 preview/
 .ghl_token
+.centiads_ingest_key
+app/

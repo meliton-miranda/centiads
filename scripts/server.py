@@ -6,7 +6,11 @@ Sirve el dashboard con 3 vistas, 3 niveles y filtro por fecha REAL contra Postgr
 
 Sin dependencias de Node. Solo pg8000 (Python puro).
 """
+import html
+import json
 import os
+import re
+import time
 import urllib.parse
 from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -14,7 +18,11 @@ from pathlib import Path
 
 import pg8000.native
 
+import ads_view
+import webapp
+
 ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_ADS_ACCOUNT = os.environ.get("DEFAULT_ADS_ACCOUNT", "1720348845604594")  # Miranda Asegura
 
 
 def load_env():
@@ -266,17 +274,85 @@ def build_page(tab, preset, since, until):
            f'<th>GHL location</th><th>PIT</th><th>Campo UTM</th><th>Estado</th><th></th></tr></thead>'
            f'<tbody>{ghl_rows}</tbody></table></div></section>')
 
+    return PAGE.format(nav=nav_html(tab, preset, since, until),
+                       body=view("client", "Clientes") + view("netus", "NetUs (campañas propias)") + ghl,
+                       extra_css="", extra_js="")
+
+
+def nav_html(tab, preset, since, until):
     def navlink(t, label):
         on = " on" if tab == t else ""
         return f'<a class="nl{on}" href="/?tab={t}&preset={preset}&since={since or ""}&until={until or ""}">{label}</a>'
+    return (navlink("client", "Clientes") + navlink("netus", "NetUs") + '<a class="nl" href="/app">Control de Ads</a>'
+            + navlink("ghl", "Cuentas · GHL") + '<form method="post" action="/logout" style="margin:0 0 0 auto">'
+            '<button class="btn" style="background:#0f1520;color:#e6edf6;border:1px solid #223046">Salir</button></form>')
 
-    return PAGE.format(nav=navlink("client", "Clientes") + navlink("netus", "NetUs") + navlink("ghl", "Cuentas · GHL"),
-                       client=view("client", "Clientes"), netus=view("netus", "NetUs (campañas propias)"), ghl=ghl)
+
+# ---- vista Control de Ads ----------------------------------------------------
+def fetch_ads(con, acct, d0):
+    """Toda la historia de la cuenta desde d0: anuncios, métricas diarias, creativos y CRM por oportunidad."""
+    con.run("set search_path to cockpit, public")
+    accounts = con.run("select meta_ad_account_id, name from clients order by name")
+    info = con.run("""select meta_ad_account_id, name, currency,
+        (to_jsonb(c)->>'target_cpl')::numeric from clients c where meta_ad_account_id = :a""", a=acct)
+    status = con.run("""select ad_id, ad_name, campaign_id, effective_status from meta_ad_status
+        where meta_ad_account_id = :a""", a=acct)
+    daily = con.run("""select ad_id, max(ad_name), max(campaign_id), max(status), date, sum(spend),
+        sum(impressions), sum(clicks), sum(leads) from meta_ad_daily
+        where meta_ad_account_id = :a and date >= :d0 group by ad_id, date""", a=acct, d0=d0)
+    camps = con.run("""select campaign_id, max(campaign_name) from meta_campaign_daily
+        where meta_ad_account_id = :a group by campaign_id""", a=acct)
+    creatives = []
+    if con.run("select to_regclass('cockpit.ad_creatives') is not null")[0][0]:
+        creatives = con.run("""select ad_id, coalesce(image_url, thumbnail_url) from ad_creatives
+            where meta_ad_account_id = :a""", a=acct)
+    crm = con.run("""select campaign_id, utm_content, lead_date,
+        case when is_sale then 3 when is_attended then 2 when is_appointment then 1 else 0 end,
+        case when is_sale then coalesce(monetary_value, 0) else 0 end, currency
+        from attribution where meta_ad_account_id = :a and campaign_id is not null
+          and lead_date >= :d0""", a=acct, d0=d0)
+    return accounts, info, status, daily, camps, creatives, crm
 
 
-def daterange_bar(seg, preset, since, until, df, dt):
+def build_ads_page(acct):
+    acct = acct or DEFAULT_ADS_ACCOUNT
+    today = date.today()
+    d0 = date.fromisoformat(os.environ.get("ADS_DATA_SINCE", "2025-01-01"))
+    con = connect()
+    try:
+        accounts, info, status, daily, camps, creatives, crm = fetch_ads(con, acct, d0)
+    finally:
+        con.close()
+    account = {"id": acct, "name": f"Cuenta {acct}", "currency": "MXN", "target_cpl": 100}
+    if info:
+        r = info[0]
+        account.update(name=r[1], currency=r[2] or "MXN", target_cpl=float(r[3]) if r[3] else 100)
+
+    img = dict(creatives)
+    ads = {aid: [aid, name, cid, st, img.get(aid)] for aid, name, cid, st in status}
+    for aid, name, cid, st, *_ in daily:  # anuncios con métricas pero sin foto de estado
+        ads.setdefault(aid, [aid, name, cid, st, img.get(aid)])
+    names = {c[0]: c[1] for c in camps}
+    cids = {a[2] for a in ads.values()} | {r[0] for r in crm}
+    campaigns = {c: names.get(c) or f"Campaña {c}" for c in cids if c}
+
+    if ads:
+        crm_cur = next((r[5] for r in crm if r[5]), None) or os.environ.get("CRM_CURRENCY") or account["currency"]
+        payload = ads_view.build_payload(account, list(ads.values()),
+                                         [(r[0], r[4], r[5], r[6], r[7], r[8]) for r in daily],
+                                         [r[:5] for r in crm], campaigns, d0, today, crm_cur)
+    else:
+        payload = ads_view.demo_payload(account, today)
+
+    body = ads_view.render(accounts, acct, payload)
+    return PAGE.format(nav=nav_html("ads", "last_7d", None, None), body=body,
+                       extra_css=ads_view.ADS_CSS, extra_js=ads_view.ADS_JS)
+
+
+def daterange_bar(seg, preset, since, until, df, dt, extra=None):
     opts = "".join(f'<option value="{v}"{" selected" if v == (preset or "last_7d") else ""}>{lbl}</option>' for v, lbl in PRESETS)
-    return (f'<form class="dr" method="get"><input type="hidden" name="tab" value="{seg}">'
+    hidden = "".join(f'<input type="hidden" name="{k}" value="{v}">' for k, v in (extra or {}).items())
+    return (f'<form class="dr" method="get"><input type="hidden" name="tab" value="{seg}">{hidden}'
             f'<span class="lbl">📅 Periodo:</span>'
             f'<select name="preset" onchange="if(this.value!=\'custom\')this.form.submit()">{opts}</select>'
             f'<input type="date" name="since" value="{since or ""}"> <span class="lbl">a</span> '
@@ -307,60 +383,159 @@ th:first-child,td:first-child{{text-align:left}}th{{color:var(--mu);font-weight:
 .dr{{display:flex;gap:8px;align-items:center;margin:12px 0;flex-wrap:wrap}}.dr select,.dr input{{background:var(--p2);border:1px solid var(--bd);color:var(--tx);border-radius:8px;padding:6px 9px}}.dr .lbl{{color:var(--mu);font-size:12px}}.btn{{background:var(--ac);color:#04101f;border:none;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer}}
 .ts input{{background:var(--p2);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:5px 8px}}
 .v{{display:none}}.v.on{{display:block}}
+{extra_css}
 </style></head><body>
 <nav class="nav"><span class="br">🛰️ Centiads <span style="color:var(--mu);font-weight:400;font-size:12px">by NetUs</span></span>{nav}</nav>
-<div class="wrap">{client}{netus}{ghl}</div>
+<div class="wrap">{body}</div>
 <script>
 function t(id){{event.stopPropagation();document.getElementById(id).classList.toggle('on');
  var c=document.getElementById('c-'+id);if(c)c.textContent=c.textContent=='▸'?'▾':'▸';}}
+{extra_js}
 </script></body></html>"""
 
 
 class Handler(BaseHTTPRequestHandler):
+    """Todo requiere sesión salvo /login y /api/ingest (este último con clave x-centiads-key)."""
+
+    def _send(self, code, body=b"", ctype="text/html; charset=utf-8", headers=()):
+        if isinstance(body, str):
+            body = body.encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        for k, v in headers:
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _json(self, obj, code=200):
+        self._send(code, json.dumps(obj, ensure_ascii=False, default=str), "application/json; charset=utf-8")
+
+    def _redirect(self, to, headers=()):
+        self._send(303, b"", headers=(("Location", to),) + tuple(headers))
+
+    def _body(self, limit=webapp.MAX_UPLOAD + 1024 * 1024):
+        n = int(self.headers.get("Content-Length", "0"))
+        if n > limit:
+            raise ValueError("Solicitud demasiado grande")
+        return self.rfile.read(n)
+
+    def _user(self, path):
+        email = webapp.read_session(self.headers)
+        if email:
+            return email
+        if path.startswith("/api/") or path.startswith("/banca-img/"):
+            self._json({"error": "sesión requerida"}, 401)
+        else:
+            self._redirect("/login?next=" + urllib.parse.quote(self.path))
+        return None
+
     def do_GET(self):
         u = urllib.parse.urlparse(self.path)
-        if u.path not in ("/", "/index.html"):
-            self.send_response(404); self.end_headers(); return
         q = urllib.parse.parse_qs(u.query)
+        if u.path == "/login":
+            return self._send(200, webapp.login_page(q.get("next", ["/"])[0], "err" in q))
+        if u.path == "/healthz":
+            return self._send(200, b"ok", "text/plain")
+        email = self._user(u.path)
+        if not email:
+            return
         try:
-            html = build_page(q.get("tab", ["client"])[0], q.get("preset", ["last_7d"])[0],
-                              (q.get("since", [""])[0] or None), (q.get("until", [""])[0] or None))
-            body = html.encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            if u.path in ("/", "/index.html"):
+                tab = q.get("tab", ["client"])[0]
+                if tab == "ads":
+                    return self._redirect("/app")
+                args = (q.get("preset", ["last_7d"])[0], (q.get("since", [""])[0] or None),
+                        (q.get("until", [""])[0] or None))
+                return self._send(200, build_page(tab, *args))
+            if u.path == "/app":
+                return self._send(200, webapp.app_page(html.escape(email), PAGE, ads_view))
+            con = connect()
+            try:
+                if u.path.startswith("/banca-img/"):
+                    img = webapp.banca_image(con, u.path[len("/banca-img/"):])
+                    if not img:
+                        return self._send(404, b"no encontrado", "text/plain")
+                    return self._send(200, img[0], img[1], (("Cache-Control", "private, max-age=86400"),))
+                if u.path == "/api/accounts":
+                    return self._json(webapp.api_accounts(con))
+                if u.path == "/api/payload":
+                    r = webapp.api_payload(con, q.get("acct", [""])[0])
+                    return self._json(r) if r else self._json({"error": "cuenta no encontrada"}, 404)
+                if u.path == "/api/banca":
+                    return self._json(webapp.api_banca_list(con, q.get("acct", [""])[0]))
+            finally:
+                con.close()
+            self._send(404, b"no encontrado", "text/plain")
         except Exception as e:  # noqa
-            msg = f"Error: {e}".encode("utf-8")
-            self.send_response(500); self.send_header("Content-Type", "text/plain; charset=utf-8")
-            self.end_headers(); self.wfile.write(msg)
+            self._send(500, f"Error: {e}", "text/plain; charset=utf-8")
 
     def do_POST(self):
         u = urllib.parse.urlparse(self.path)
-        if u.path != "/save-ghl":
-            self.send_response(404); self.end_headers(); return
-        n = int(self.headers.get("Content-Length", "0"))
-        data = urllib.parse.parse_qs(self.rfile.read(n).decode("utf-8"))
+        try:
+            if u.path == "/login":
+                d = urllib.parse.parse_qs(self._body(64 * 1024).decode("utf-8"))
+                email, pw = d.get("email", [""])[0].strip().lower(), d.get("password", [""])[0]
+                nxt = d.get("next", ["/"])[0]
+                nxt = nxt if nxt.startswith("/") and not nxt.startswith("//") else "/"
+                con = connect()
+                try:
+                    ok = webapp.login(con, email, pw)
+                finally:
+                    con.close()
+                if not ok:
+                    time.sleep(1)
+                    return self._redirect("/login?err=1&next=" + urllib.parse.quote(nxt))
+                return self._redirect(nxt, (("Set-Cookie", webapp.make_cookie(email)),))
+            if u.path == "/logout":
+                return self._redirect("/login", (("Set-Cookie", f"{webapp.COOKIE}=; Path=/; Max-Age=0"),))
+            if u.path == "/api/ingest":
+                if not webapp.ingest_ok(self.headers):
+                    return self._json({"error": "unauthorized"}, 401)
+                body = self._body(50 * 1024 * 1024)
+                con = connect()
+                try:
+                    return self._json(webapp.api_ingest(con, body))
+                finally:
+                    con.close()
+            email = self._user(u.path)
+            if not email:
+                return
+            body = self._body()
+            con = connect()
+            try:
+                if u.path == "/api/banca":
+                    return self._json(webapp.api_banca_create(con, email, self.headers, body))
+                m = re.fullmatch(r"/api/banca/([0-9a-f-]{36})/status", u.path)
+                if m:
+                    return self._json(webapp.api_banca_status(con, m.group(1), body))
+                if u.path == "/save-ghl":
+                    return self._save_ghl(con, body)
+            finally:
+                con.close()
+            self._send(404, b"no encontrado", "text/plain")
+        except ValueError as e:
+            self._json({"error": str(e)}, 400)
+        except Exception as e:  # noqa
+            self._json({"error": str(e)}, 500)
+
+    def _save_ghl(self, con, body):
+        data = urllib.parse.parse_qs(body.decode("utf-8"))
         acct = (data.get("acct", [""])[0]).strip()
         name = (data.get("name", [""])[0]).strip()
         loc = (data.get("loc", [""])[0]).strip()
         pit = (data.get("pit", [""])[0]).strip()
         utm = (data.get("utm", ["utm_campaign"])[0]).strip() or "utm_campaign"
         if acct:
-            con = connect()
-            try:
-                con.run("set search_path to cockpit, public")
-                con.run("""update clients set name = coalesce(nullif(:name, ''), name),
-                    ghl_location_id = :loc, ghl_utm_field = :utm,
-                    ghl_pit = coalesce(nullif(:pit, ''), ghl_pit), updated_at = now()
-                    where meta_ad_account_id = :acct""",
-                    name=name, loc=(loc or None), utm=utm, pit=pit, acct=acct)
-            finally:
-                con.close()
-        self.send_response(303)
-        self.send_header("Location", "/?tab=ghl")
-        self.end_headers()
+            con.run("set search_path to cockpit, public")
+            con.run("""update clients set name = coalesce(nullif(:name, ''), name),
+                ghl_location_id = :loc, ghl_utm_field = :utm,
+                ghl_pit = coalesce(nullif(:pit, ''), ghl_pit), updated_at = now()
+                where meta_ad_account_id = :acct""",
+                name=name, loc=(loc or None), utm=utm, pit=pit, acct=acct)
+        self._redirect("/?tab=ghl")
 
     def log_message(self, *a):
         pass
@@ -368,6 +543,11 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     load_env()
+    _con = connect()
+    try:
+        webapp.load_settings(_con)
+    finally:
+        _con.close()
     port = int(os.environ.get("PORT", "8080"))
     print(f"NetUs Ads Cockpit en http://0.0.0.0:{port}")
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()

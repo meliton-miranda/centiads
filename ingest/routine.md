@@ -75,6 +75,16 @@ Usar `date_preset: YESTERDAY` (o `time_range` con la fecha de ayer). Herramienta
   y `effective_status→status`. Cada anuncio activo = un renglón en `meta_ad_daily`.
 - Se puede combinar con 2c (rechazos): el `effective_status`/`ad_review_feedback` marca el anuncio en rojo.
 
+### 2f. Creativos por anuncio → `ad_creatives[]`  (imágenes para "Control de Ads")
+- Tool: **`ads_get_ad_entities`** con `level: ad` pidiendo el id del creativo del anuncio
+  (verificar el nombre exacto del campo con `ads_get_field_context`, p.ej. `creative`).
+- Tool: **`ads_get_creatives`** con `creative_ids` y `fields: [id, thumbnail_url, image_url, title,
+  body, call_to_action_type, link_url]`. Emitir `{ad_id, creative_id, thumbnail_url, image_url, title,
+  body, call_to_action_type, link_url}`.
+- Las URLs de Meta **expiran**: refrescar este bloque en cada corrida (el loader hace delete + insert).
+- Incluir **todos** los anuncios de `ad_status` (también pausados): la **Banca** son anuncios
+  PAUSADOS con `BANCA` en el nombre, y necesitan su imagen aunque no tengan gasto.
+
 > Nota: los schemas exactos de cada tool MCP están diferidos; cargarlos en runtime con
 > ToolSearch (`select:ads_get_ad_entities,ads_get_errors,ads_get_customconversions,...`)
 > y ajustar nombres de campos si Meta cambió algo. Ante duda, `ads_get_field_context`.
@@ -87,6 +97,11 @@ No es por MCP: usar el PIT del cliente contra la API de GHL (ver `lib/ghl.ts`).
   UTM (`ghl_utm_field`) → `campaign_id`. Marcar `is_appointment` (Agendó/Confirmó/Asistió),
   `is_sale` (Contrató), fechas y `monetary_value`. Mapear al `meta_ad_account_id` del cliente.
 - El join es **dentro de la subcuenta** (UTM → campaña de esa misma cuenta Meta).
+- **Atribución por anuncio** (vista "Control de Ads"): `python3 scripts/ghl_pull.py <meta_ad_account_id> <location>`
+  guarda una fila en `attribution` por oportunidad con UTM de Meta, tomada del **primer contacto**
+  (`attributions[isFirst]`): `utm_id` → `campaign_id`, `utm_content` → `utm_content` (ad_id o nombre del
+  anuncio), `is_appointment` (≥ etapa de cita), `is_attended` (≥ "Asistió"), `is_sale` (status won).
+  Para que el empate llegue al anuncio, los anuncios deben llevar `utm_content={{ad.id}}` en sus parámetros de URL.
 
 ## 4. Tipos de cambio → `fx[]`
 - Obtener rate_to_usd de MXN e INR (WebSearch/una API FX) para `as_of_date`. USD = 1.
@@ -125,6 +140,10 @@ Después de cargar, consultar y publicar (Google Chat / email) un resumen con:
         { "ad_id": "…", "ad_name": "…", "campaign_id": "…", "adset_id": "…",
           "effective_status": "ACTIVE", "review_feedback": null, "delivery_issues": null,
           "created_time": "2026-07-01T10:00:00-06:00" }
+      ],
+      "ad_creatives": [
+        { "ad_id": "…", "creative_id": "…", "thumbnail_url": "https://…", "image_url": null,
+          "title": "…", "body": "…", "call_to_action_type": "LEARN_MORE", "link_url": "https://…" }
       ],
       "adset_interests": [
         { "adset_id": "…", "adset_name": "…", "interest_id": "6003…", "interest_name": "Seguros" }

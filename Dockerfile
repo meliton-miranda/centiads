@@ -1,4 +1,4 @@
-# Plataforma NetUs Ads Cockpit — imagen para EasyPanel
+# Plataforma Centiads (NetUs Ads Cockpit) — imagen para EasyPanel
 FROM python:3.12-slim
 WORKDIR /app
 RUN pip install --no-cache-dir pg8000
